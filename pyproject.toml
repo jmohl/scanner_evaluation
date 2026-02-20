@@ -10,15 +10,18 @@ package-mode = false
 python = "^3.11"
 python-decouple = "^3.8"
 requests = "^2.32.3"
-asknews = "^0.11.2"
 numpy = "^2.3.0"
-openai = "^1.57.4"
+openai = "^2.0"
 python-dotenv = "^1.0.1"
 matplotlib = "^3.10.6"
 seaborn = "^0.13.2"
 anthropic = "^0.71.0"
 nest-asyncio = "^1.6.0"
 scipy = "^1.17.0"
+inspect-ai = "^0.3.179"
+plotly = "^6.5.2"
+instructor = "^1.14.5"
+tabulate = "^0.9.0"
 
 
 [tool.poetry.group.dev.dependencies]
