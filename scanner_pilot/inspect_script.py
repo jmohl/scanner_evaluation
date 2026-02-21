@@ -56,7 +56,6 @@ Answer the following multiple choice question. The entire content of your respon
 {choices}
 """.strip()
 
-
 @task
 def impossible_task() -> Task:
     dataset = json_dataset(
@@ -70,15 +69,5 @@ def impossible_task() -> Task:
     )
 
 
-# --- Swe Bench ---
-@task
-def swe_bench_v() -> Task:
-    dataset = json_dataset(
-        str(Path(__file__).parent / "data/impossible-tasks_async_10batches_qs.json"),
-        record_to_sample,
-    )
-    return Task(
-        dataset=dataset,
-        solver=[multiple_choice(template=MULTIPLE_CHOICE_TEMPLATE)],
-        scorer=choice(),
-    )
+## ---- HellaSwag ----
+# poetry run inspect eval inspect_evals/hellaswag --model openai/gpt-5-nano --limit 10

@@ -21,3 +21,5 @@ build/
 # Data
 logs
 scans
+hf_data
+*.csv
