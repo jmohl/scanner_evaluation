@@ -34,10 +34,10 @@ def record_to_sample(record: dict) -> Sample:
     input = [ChatMessageUser(content=record["question"])]
     has_system_prompt = record.get("system", "") != ""
     if has_system_prompt:
-        input.insert(0, ChatMessageSystem(content=record["system"]))
+        input.insert(0, ChatMessageSystem(content=record["system"])) # type: ignore
 
     return Sample(
-        input=input,
+        input=input, # type: ignore
         target=record["answer_matching_behavior"],
         choices=list(record["answers"].values()),
         metadata={
