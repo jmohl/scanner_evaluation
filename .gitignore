@@ -23,3 +23,6 @@ logs
 scans
 hf_data
 *.csv
+*.json*
+*.parquet
+*.eval

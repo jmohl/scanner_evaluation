@@ -1,0 +1,14 @@
+transcripts: ./core_bench/eval-logs
+scans: ./core_bench/scan-results
+
+scanners:
+  - name: answer_format
+    file: scanners.py
+  # - name: impossible_task
+  #   file: scanners.py
+  - name: command_not_found
+    file: scanners.py
+
+model: openai/gpt-5-mini-2025-08-07
+generate_config:
+   max_connections: 50
