@@ -26,3 +26,6 @@ hf_data
 *.json*
 *.parquet
 *.eval
+
+#exception for validation csvs
+!evals/core_bench/validation/*.csv

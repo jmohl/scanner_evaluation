@@ -8,6 +8,7 @@ seaborn>=0.13.2
 anthropic>=0.71.0
 nest-asyncio>=1.6.0
 scipy>=1.17.0
+scikit-learn>=1.6.0
 inspect-ai>=0.3.179
 plotly>=6.5.2
 instructor>=1.14.5

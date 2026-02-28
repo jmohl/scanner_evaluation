@@ -42,9 +42,9 @@ task = core_bench(
 eval(
     task, 
     model="openai/gpt-5-mini-2025-08-07",
-    max_sandboxes=8,
-    max_subprocesses=8,
-    max_connections=20, 
+    max_sandboxes=4,
+    max_subprocesses=4,
+    max_connections=10, 
     log_dir=LOG_DIR) #gpt-5.2-2025-12-11
 
 

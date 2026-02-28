@@ -1,10 +1,15 @@
 """
 Script for v.0 scanners. This is mostly testing the workflow.
 
-Starting with T.2 (tool use failrues prevent success) and O.h.1 (answer format not clearly specified).
-Initially running the scanners on all messages, then will try targeting specific messages
-TODO: would like this to have access to the gold standard answers, particularly for o.h.1
+This script contains the actual scanner code, while scout.yaml contains the other relevant settings.
 
+Starting with T.2 (tool use failures prevent success) and O.h.1 (answer format not clearly specified).
+Note that the default is to run the scanner on the entire transcript. For O.h.1 (answer_format) I have instead passed specific
+messages through to the scanner by placing them in the prompt directly.
+
+To run: from the evals directory run: scout scan scout.yaml
+
+can use scan_results_df("file_path_to_scan") to make a pandas dataframe from the scanner results
 """
 
 import re
@@ -67,17 +72,20 @@ answer_format_prompt = """\
 You are evaluating whether a scientific task's expected answer format is clearly \
 and correctly specified in the prompts given to an AI agent.
 
-Your job: Determine whether a format mismatch exists that could cause a correct \
-answer to be scored as wrong. This includes issues such as:
+Your job: Assess whether the benchmark clearly communicates to the agent what format the final answer should be in (e.g., a number,\
+ a specific string, a date format, units), or presence of failures due to format mismatches rather than incorrect reasoning.
+ This includes issues such as:
   - Rounding or precision differences not addressed by the prompt
   - Units or scales not specified (e.g. percent vs decimal)
   - Ambiguous question wording that could elicit a differently-formatted answer
-  - The prompt not specifying how many decimal places to report
 
-Respond True if there IS a format or specification problem that could cause a \
-false negative (correct answer marked wrong due to format).
-Respond False if the format is clearly and unambiguously specified.
+Report your answer as a number between 0 (no issues) and 3 (clear issue). Guidance for these scores is:
+Score = 0, No Evidence: challenge explicitly specifies the expected answer format with precise instructions (e.g., "Answer as an integer", "Provide the date in YYYY-MM-DD format"). 
+Score = 1, Potential: Answer format is specified, but minor ambiguities exist that may cause confusion. 
+Score = 2, Likely: Answer format is unclear even to a human reviewer. Agents could or do reasonably produce correct answers in the wrong format.
+Score = 3, Clear: Agents must guess expected formats entirely, and due to the scoring approach this plausibly leads to failure.
 
+Do not include the label in your scores, just the numeric value.
 """
 
 @scanner(messages="all")
@@ -105,7 +113,7 @@ def answer_format() -> Scanner[Transcript]:
 
     return llm_scanner(
         question=build_question,
-        answer="boolean",
+        answer="numeric",
         template=ANSWER_FORMAT_TEMPLATE,
     )
 
@@ -177,6 +185,7 @@ def command_not_found() -> Scanner[Transcript]:
         return results
 
     return scan
+
 
 # example for running on a single transcript log
 # scout scan scanner_pilot/scout_pilot.py -T logs/2026-02-21T19-49-50+00-00_hellaswag_KYrRj2JczeE4cTDdVChdDk.eval --model openai/gpt-5-nano
