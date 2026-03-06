@@ -31,7 +31,7 @@ task = core_bench(
     #language="Python",
     limit=0, #limit = 0 to run all
     solver=agent,
-    difficulty='easy', #tasks are either easy, medium, or hard. medium and hard tasks may use gpu resources
+    difficulty='medium', #tasks are either easy, medium, or hard. medium and hard tasks may use gpu resources
     #filter_out_gpu=False, #note that tasks will fail if there is no GPU on your machine
     token_limit=1000000, #original CORE-bench had a $4 limit per task, can use this to approximate that
     max_messages=50
@@ -42,8 +42,8 @@ task = core_bench(
 eval(
     task, 
     model="openai/gpt-5-mini-2025-08-07",
-    max_sandboxes=4,
-    max_subprocesses=4,
+    max_sandboxes=2,
+    max_subprocesses=2,
     max_connections=10, 
     log_dir=LOG_DIR) #gpt-5.2-2025-12-11
 

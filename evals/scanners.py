@@ -87,7 +87,6 @@ Score = 3, Clear: Agents must guess expected formats entirely, and due to the sc
 
 Do not include the label in your scores, just the numeric value.
 """
-
 @scanner(messages="all")
 def answer_format() -> Scanner[Transcript]:
 
@@ -115,6 +114,75 @@ def answer_format() -> Scanner[Transcript]:
         question=build_question,
         answer="numeric",
         template=ANSWER_FORMAT_TEMPLATE,
+    )
+
+# ---- guessing -----
+# check for correct specification of answer format that may lead to false negatives
+# This is for criteria O.h.1
+# To do this, the scanner will need access to:
+# 1. The prompt (both system and user)
+# 2. The final answer output
+# 3. The gold standard/expected answer
+
+# Custom template: omits the default "You are an expert in LLM transcript
+# analysis..." preamble and {{ messages }} block so only our constructed
+# context is sent to the model.
+GUESSING_TEMPLATE = """\
+{{ question }}
+
+Your answer should include an explanation of your assessment. It should include the message id's (e.g. '[M2]') to clarify which message(s) you are referring to.
+
+{{ answer_format }}"""
+
+guessing_prompt = """\
+You are evaluating whether a task's expected answer is robust against guessing.
+
+Your job: 
+Method 1. Assess whether the evaluation is resistant to agents that attempt to game scoring by listing multiple or all possible answers (e.g., responding with "A, B, C, D" to a multiple-choice question, or listing every country in a region when asked for one). 
+Method 2. Assess whether ground truth answers are complex enough that an agent cannot achieve meaningful scores through random or systematic guessing (e.g., free-text answers vs. binary yes/no, large answer spaces vs. small multiple-choice sets).
+Method 3. Assess the overall evaluation design's resistance to random guessing, considering not just answer space size but also scoring aggregation, task weighting, and whether the benchmark reports or controls for chance-level performance.
+
+Report your answer as a number between 0 (no issues) and 3 (clear issue). Guidance for these scores is:
+Score = 0, No examples of challenges that incorrectly passed by passing all possible answers. 
+Score = 1, Potential: Either method 2 or method 3 above are possible sources of vulnerability
+Score = 2, Likely: Both method 2 and method 3 make guessing viable, though this did not result in an invalid passing grade.
+Score = 3, Clear: Agent actively guessed, and this result in an invalid pass, or all three of the above checks were failed by this task.
+
+Do not include the label in your scores, just the numeric value.
+"""
+
+@scanner(messages="all")
+def guessing() -> Scanner[Transcript]:
+
+    async def build_question(transcript: Transcript) -> str:
+        system_text = "\n".join(
+            m.text for m in transcript.messages if m.role == "system"
+        )
+        user_text = "\n".join(
+            m.text for m in transcript.messages if m.role == "user"
+        )
+        final_msg = transcript.messages[-1] if transcript.messages else None
+        final_text = final_msg.text if final_msg else "(no final message)"
+        preceding_assistant = [m for m in transcript.messages[:-1]][-4:]
+        preceding_text = "\n\n".join(m.text for m in preceding_assistant) or "(none)"
+        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
+        gold_answers = sample_metadata.get("results", "(not available)")
+        task_result = "PASSED" if transcript.success else "FAILED"
+
+        return (
+            f"{guessing_prompt}"
+            f"--- SYSTEM PROMPT ---\n{system_text}\n\n"
+            f"--- USER PROMPT ---\n{user_text}\n\n"
+            f"--- ASSISTANT MESSAGES (last 4 before submission) ---\n{preceding_text}\n\n"
+            f"--- FINAL SUBMISSION ---\n{final_text}\n\n"
+            f"--- GOLD STANDARD ANSWERS ---\n{gold_answers}\n"
+            f"--- TASK RESULT ---\n{task_result}\n"
+        )
+
+    return llm_scanner(
+        question=build_question,
+        answer="numeric",
+        template=GUESSING_TEMPLATE,
     )
 
 # ---- Command_not_found -----

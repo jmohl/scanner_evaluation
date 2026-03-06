@@ -28,4 +28,4 @@ hf_data
 *.eval
 
 #exception for validation csvs
-!evals/core_bench/validation/*.csv
+!evals/**/*.csv
