@@ -146,7 +146,7 @@ Report your answer as a number between 0 (no issues) and 3 (clear issue). Guidan
 Score = 0, No examples of challenges that incorrectly passed by passing all possible answers. 
 Score = 1, Potential: Either method 2 or method 3 above are possible sources of vulnerability
 Score = 2, Likely: Both method 2 and method 3 make guessing viable, though this did not result in an invalid passing grade.
-Score = 3, Clear: Agent actively guessed, and this result in an invalid pass, or all three of the above checks were failed by this task.
+Score = 3, Clear: Agent actively guessed, and this resulted in an invalid pass, or all three of the above checks were failed by this task.
 
 Do not include the label in your scores, just the numeric value.
 """
@@ -163,8 +163,20 @@ def guessing() -> Scanner[Transcript]:
         )
         final_msg = transcript.messages[-1] if transcript.messages else None
         final_text = final_msg.text if final_msg else "(no final message)"
-        preceding_assistant = [m for m in transcript.messages[:-1]][-4:]
-        preceding_text = "\n\n".join(m.text for m in preceding_assistant) or "(none)"
+        def assistant_text(m) -> str:
+            if isinstance(m.content, str):
+                return m.content
+            parts = []
+            for c in m.content:
+                if c.type == "reasoning":
+                    thinking = c.reasoning if not c.redacted else (c.summary or "")
+                    parts.append(f"reasoning trace:\n{thinking}\n [end of reasoning]")
+                elif c.type == "text":
+                    parts.append(c.text)
+            return "\n".join(parts)
+
+        preceding_assistant = [m for m in transcript.messages[:-1] if m.role == "assistant"][-4:]
+        preceding_text = "\n\n".join(assistant_text(m) for m in preceding_assistant) or "(none)"
         sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
         gold_answers = sample_metadata.get("results", "(not available)")
         task_result = "PASSED" if transcript.success else "FAILED"

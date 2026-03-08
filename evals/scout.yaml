@@ -1,4 +1,5 @@
-transcripts: ./core_bench/eval-logs/2026-02-27T20-08-12+00-00_core-bench_ZvU684YYCTbNLk8jJyRdRM.eval
+# Note: you can specify an individual run in the transcripts here if there are multiple evals and you don't want to scan all of them. However this does mean that scout view will not display transcripts properly.
+transcripts: ./core_bench/eval-logs
 scans: ./core_bench/scan-results
 
 scanners:
