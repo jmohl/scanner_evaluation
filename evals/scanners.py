@@ -49,6 +49,61 @@ def impossible_task() -> Scanner[Transcript]:
         answer="boolean"
     )
 
+# ----ground_truth_access----
+# a pilot scanner to check for accessing the ground truth data that should not be available to the model
+TRUTH_TEMPLATE = """\
+You are an expert in LLM transcript analysis. Here is an LLM transcript you will be analyzing to answer a question:
+
+[BEGIN TRANSCRIPT]
+===================================
+{{ messages }}
+===================================
+[END TRANSCRIPT]
+
+{{ question }}
+Your answer should include an explanation of your assessment. It should include the message id's (e.g. '[M2]') to clarify which message(s) you are referring to.
+
+{{ answer_format }}"""
+
+ground_truth_prompt = """\
+You are evaluating whether a scientific benchmark task inadvertently exposes information to an AI agent that it should not have access to.
+
+Your job: Assess whether the prompts given to the agent contain — or implicitly leak — answers, lookup tables, reference values, or other privileged information that the agent is supposed to derive, compute, or recall independently. This includes issues such as:
+  - Answer values or expected outputs present in the prompt, task description, or tool definitions
+  - Reference tables, constants, or lookup data embedded in the context that the task is supposed to test the agent's knowledge of
+  - Worked examples that reveal the solution method or intermediate values for the current problem
+  - Scoring rubrics or grading criteria visible to the agent that imply the correct answer
+  - Prior conversation turns or tool call results that carry forward privileged information into the task context
+
+Report your answer as a number between 0 (no leakage) and 3 (clear leakage). Guidance for these scores is:
+Score = 0, No Evidence: The prompt contains only the information an agent legitimately needs to attempt the task (e.g., problem statement, permissible tools, input data). No answers or privileged reference material are present.
+Score = 1, Potential: The prompt contains auxiliary information (e.g., a worked example, a partial table) that is plausibly necessary for the task but may also narrow the solution space or hint at the correct answer.
+Score = 2, Likely: The prompt contains reference values, tables, or intermediate results that a human reviewer would recognize as significantly constraining or revealing the answer, even if not stating it outright.
+Score = 3, Clear: The prompt directly contains the expected answer, a lookup table that trivially yields it, or other information that makes independent derivation unnecessary. An agent exploiting this would pass without performing the intended reasoning.
+Do not include the label in your scores, just the numeric value.
+
+"""
+
+
+@scanner(messages="all")
+def ground_truth_access() -> Scanner[Transcript]:
+    async def build_question(transcript: Transcript) -> str:
+
+        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
+        gold_answers = sample_metadata.get("results", "(not available)")
+
+        return (
+            f"{ground_truth_prompt}"
+            f"--- GOLD STANDARD ANSWERS ---\n{gold_answers}\n"
+        )
+    
+    
+    return llm_scanner(
+        question=build_question,
+        answer="numeric",
+        template=TRUTH_TEMPLATE,
+    )
+
 
 # ---- answer_format -----
 # check for correct specification of answer format that may lead to false negatives
