@@ -19,7 +19,8 @@ DATASET_REPO_ID = "arcadia-mars-4-0/abc-scout-scanners"
 def push_dataset(
     eval_logs_dir: Path,
     scan_results_dir: Path,
-    scanner_name: str,
+    validation_dir: Path | None = None,
+    scanner_name: str | None = None,
     dataset_subdir: str = "xstest",
     token: str | None = None,
     commit_message: str | None = None,
@@ -30,9 +31,13 @@ def push_dataset(
     with tempfile.TemporaryDirectory() as tmp:
         staging = Path(tmp) / dataset_subdir
         staging_eval_logs = staging / "eval-logs"
-        staging_scan_results = staging / "scan-results" / scanner_name
+        staging_validation = staging / "validation"
+        staging_scan_results = staging / "scan-results"
+        if scanner_name is not None:
+            staging_scan_results = staging_scan_results / scanner_name
 
         staging_eval_logs.mkdir(parents=True)
+        staging_validation.mkdir(parents=True)
         staging_scan_results.mkdir(parents=True)
 
         if eval_logs_dir.exists():
@@ -41,9 +46,20 @@ def push_dataset(
         else:
             logger.warning(f"eval-logs directory not found: {eval_logs_dir}")
 
+        if validation_dir is not None and validation_dir.exists():
+            shutil.copytree(validation_dir, staging_validation, dirs_exist_ok=True)
+            logger.info(f"Staged validation from {validation_dir}")
+        elif validation_dir is not None:
+            logger.warning(f"validation directory not found: {validation_dir}")
+
         if scan_results_dir.exists():
             shutil.copytree(scan_results_dir, staging_scan_results, dirs_exist_ok=True)
-            logger.info(f"Staged scan-results from {scan_results_dir} → scan-results/{scanner_name}/")
+            if scanner_name is None:
+                logger.info(f"Staged full scan-results tree from {scan_results_dir}")
+            else:
+                logger.info(
+                    f"Staged scan-results from {scan_results_dir} → scan-results/{scanner_name}/"
+                )
         else:
             logger.warning(f"scan-results directory not found: {scan_results_dir}")
 
@@ -54,7 +70,7 @@ def push_dataset(
             repo_id=DATASET_REPO_ID,
             repo_type="dataset",
             commit_message=commit_message
-            or f"Update {dataset_subdir}/ eval-logs and scan-results",
+            or f"Update {dataset_subdir}/ eval-logs, validation, and scan-results",
         )
 
     logger.info("Upload complete.")
@@ -80,10 +96,17 @@ def main() -> None:
         help="Local directory containing scan result files",
     )
     parser.add_argument(
+        "--validation-dir",
+        type=Path,
+        help="Optional local directory containing validation files",
+    )
+    parser.add_argument(
         "--scanner-name",
         type=str,
-        required=True,
-        help="Scanner name used as subfolder inside scan-results/ (e.g. dummy-scanner)",
+        help=(
+            "Optional scanner name used as a subfolder inside scan-results/. "
+            "If omitted, the full scan-results directory is uploaded as-is."
+        ),
     )
     parser.add_argument(
         "--dataset-subdir",
@@ -107,6 +130,7 @@ def main() -> None:
     push_dataset(
         eval_logs_dir=args.eval_logs_dir,
         scan_results_dir=args.scan_results_dir,
+        validation_dir=args.validation_dir,
         scanner_name=args.scanner_name,
         dataset_subdir=args.dataset_subdir,
         token=args.token,

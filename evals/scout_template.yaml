@@ -1,3 +1,8 @@
+## Template Scout Yaml ##
+# It's convenient to set up scout.yaml inside a specific eval directory while working on that eval
+# This allows scout view to source the correct transcripts and scans, wiithout also picking up additional data from other evals
+# This can also be used to specify scanners to be run, scan settings, etc.
+
 # Note: you can specify an individual run in the transcripts here if there are multiple evals and you don't want to scan all of them. However this does mean that scout view will not display transcripts properly.
 transcripts: ./eval-logs
 scans: ./scan-results
@@ -14,11 +19,7 @@ scanners:
   # - name: ground_truth_access
   #   file: scanners.py
   - name: grading_answers
-    file: /home/jeffm/projects/scanner_evaluation/evals/scanners.py
-  - name: grading_guessing
-    file: /home/jeffm/projects/scanner_evaluation/evals/scanners.py
-  # - name: grading_guessing_asst
-  #   file: /home/jeffm/projects/scanner_evaluation/evals/scanners.py
+    file: scanners.py
 
 validation:
 #   answer_format: ./core_bench/validation/core_bench_easy_oh1_3pointscale.csv

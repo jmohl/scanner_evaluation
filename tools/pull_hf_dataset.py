@@ -12,7 +12,7 @@ from huggingface_hub import snapshot_download
 logger = logging.getLogger(__name__)
 
 DATASET_REPO_ID = "arcadia-mars-4-0/abc-scout-scanners"
-DEFAULT_OUTPUT_DIR = Path("data/abc-scout-scanners")
+DEFAULT_OUTPUT_DIR = Path("evals")
 
 
 def pull_dataset(
