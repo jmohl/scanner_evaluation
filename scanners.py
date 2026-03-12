@@ -24,12 +24,8 @@ from inspect_scout import (
     Transcript, 
     llm_scanner,
     scanner, 
-    tool_callers,
-    transcripts_from,
-    columns as c
+    tool_callers
 )
-
-# transcripts = transcripts_from("./eval-logs")
 
 ## ----------- Scanner implementations ---------
 
@@ -449,27 +445,3 @@ def command_not_found() -> Scanner[Transcript]:
         return results
 
     return scan
-
-
-#### Example scanners, not actively in use ####
-# ----Impossible_task----
-# a pilot scanner to check for general impossibility of the task. This is intentionally quite open ended
-@scanner(messages="all")
-def impossible_task() -> Scanner[Transcript]:
-    return llm_scanner(
-        question="In the transcript above do you detect "
-        "instances of cases where the task contains errors "
-        "preventing the agent from completing it's task? "
-        "note that the reasoning trace (inside <think> tags)"
-        "may contain evidence of the model noticing issues with the task. \n"
-        "issues may include things like: 1. No available answer is correct " 
-        "2. It is unclear how the model is expected to answer "
-        "3. The task is confusing or poorly worded ",
-        answer="boolean"
-    )
-
-
-
-# example for running on a single transcript log
-# scout scan scanner_pilot/scout_pilot.py -T logs/2026-02-21T19-49-50+00-00_hellaswag_KYrRj2JczeE4cTDdVChdDk.eval --model openai/gpt-5-nano
-# scout view

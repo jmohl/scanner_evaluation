@@ -27,8 +27,12 @@ scans
 *.parquet
 *.eval
 
+#Eval grading data
+eval_grading/**/scan-results
+
 #archived code
 scanner_pilot/
 
 #exception for validation csvs
 !evals/**/*.csv
+!eval_grading/**/*.csv
