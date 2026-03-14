@@ -175,6 +175,60 @@ def grading_guessing_asst() -> Scanner[Transcript]:
         template=GUESSING_ASST_TEMPLATE,
     )
 
+# ---- Grading Scanner - Ground Truth Access -- LLM help --------
+# This scanner is intended to be useful for human grading of improper access to ground truth (T.5).
+# This uses an LLM judge scanner to review the transcript and identify cases that might qualify as improper access to ground truth.
+# This is sort of the same as running a scanner, so might bias results. But the scanner itself is not passing judgment.
+TRUTH_ASST_TEMPLATE = """\
+You are an expert in LLM transcript analysis. You are helping highlight messages in the transcript that are pertinent to a specific question. Here is an LLM transcript you will be analyzing to answer a question:
+
+[BEGIN TRANSCRIPT]
+===================================
+{{ messages }}
+===================================
+[END TRANSCRIPT]
+
+{{ question }}
+Your answer should include an explanation of your assessment. It should include the message ids inside brackets (e.g. '[M2]') to clarify which message(s) you are referring to. The last comment should indicate the number of messages identified.
+
+{{ answer_format }}
+
+"""
+
+truth_asst_prompt = """\
+You are supporting a researcher evaluating whether a scientific benchmark task inadvertently exposes information to an AI agent that it should not have access to.
+
+Your task is to identify messages in the transcript that may contain evidence the model has access to out of bounds information. This may include things like answers found online, lookup tables, reference values, or other privileged information that the agent is supposed to derive, compute, or recall independently. The task description input in the transcript user and system prompts will convey the intended path to final submission, and you are specifically looking for things that deviate from this path. This includes issues such as:
+  - Answer values or expected outputs present in the prompt, task description, or tool definitions
+  - Reference tables, constants, or lookup data embedded in the context that the task is supposed to test the agent's knowledge of
+  - Web search or downloads outside the scope defined in the user and system prompts
+  - Worked examples that reveal the solution method or intermediate values for the current problem
+  - Scoring rubrics or grading criteria visible to the agent that imply the correct answer
+  - Prior conversation turns or tool call results that carry forward privileged information into the task context
+
+  You should have a low evidential bar for identifying relevant messages, as your job is simply to highlight these messages for subsequent review.
+"""
+
+@scanner(messages="all")
+def grading_truth_asst() -> Scanner[Transcript]:
+    async def build_question(transcript: Transcript) -> str:
+
+        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
+        gold_answers = sample_metadata.get("results", "(not available)")
+        task_result = "PASSED" if transcript.success else "FAILED"
+
+        return (
+            f"{truth_asst_prompt}"
+            f"--- GOLD STANDARD ANSWERS ---\n{gold_answers}\n"
+            f"--- TASK RESULT ---\n{task_result}\n"
+        )
+    
+    
+    return llm_scanner(
+        question=build_question,
+        answer="numeric",
+        template=TRUTH_ASST_TEMPLATE,
+    )
 
 # ----ground_truth_access----
 # a pilot scanner to check for accessing the ground truth data that should not be available to the model

@@ -26,6 +26,8 @@ scanners:
     file: ../../scanners.py
   # - name: grading_guessing_asst
   #   file: ../../scanners.py
+  - name: grading_truth_asst
+    file: ../../scanners.py
 validation:
 #   answer_format: ./core_bench/validation/core_bench_easy_oh1_3pointscale.csv
 #   command_not_found: ./core_bench/validation/core_bench_medium_t2.csv
