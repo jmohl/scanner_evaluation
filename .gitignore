@@ -29,7 +29,6 @@ scans
 
 #Eval grading data
 eval_grading/**/scan-results
-
 #archived code
 scanner_pilot/
 

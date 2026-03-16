@@ -27,6 +27,37 @@ from inspect_scout import (
     tool_callers
 )
 
+## ----------- Helpers ---------
+
+def get_gold_answers(transcript: Transcript) -> str:
+    """Extract gold standard answers from transcript metadata.
+
+    Both benchmarks nest sample data under metadata["sample_metadata"] in the
+    scout transcript context, but use different keys within it:
+    - CORE-bench: sample_metadata["results"]
+    - SWE-bench:  sample_metadata["FAIL_TO_PASS"] / sample_metadata["PASS_TO_PASS"]
+    """
+    sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
+
+    # CORE-bench style
+    results = sample_metadata.get("results")
+    if results is not None:
+        return str(results)
+
+    # SWE-bench style
+    fail_to_pass = sample_metadata.get("FAIL_TO_PASS")
+    pass_to_pass = sample_metadata.get("PASS_TO_PASS")
+    if fail_to_pass is not None or pass_to_pass is not None:
+        parts = []
+        if fail_to_pass is not None:
+            parts.append(f"FAIL_TO_PASS:\n{fail_to_pass}")
+        if pass_to_pass is not None:
+            parts.append(f"PASS_TO_PASS:\n{pass_to_pass}")
+        return "\n\n".join(parts)
+
+    return "(not available)"
+
+
 ## ----------- Scanner implementations ---------
 
 # ---- Grading Scanner - Questions --------
@@ -49,8 +80,7 @@ def grading_answers() -> Scanner[Transcript]:
         )
         final_msg = transcript.messages[-1] if transcript.messages else None
         final_text = final_msg.text if final_msg else "(no final message)"
-        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
-        gold_answers = sample_metadata.get("results", "(not available)")
+        gold_answers = get_gold_answers(transcript)
         task_result = "PASSED" if transcript.success else "FAILED"
 
         text_selection = (
@@ -77,8 +107,7 @@ def grading_guessing() -> Scanner[Transcript]:
     
     async def scan(transcript: Transcript) -> Result:
 
-        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
-        gold_answers = sample_metadata.get("results", "(not available)")
+        gold_answers = get_gold_answers(transcript)
         task_result = "PASSED" if transcript.success else "FAILED"
         system_text = "\n".join(
             f"[M{i}] {m.text}" for i, m in enumerate(transcript.messages) if m.role == "system"
@@ -158,8 +187,7 @@ Option 3. The overall evaluation design is resistant to random guessing, conside
 def grading_guessing_asst() -> Scanner[Transcript]:
     async def build_question(transcript: Transcript) -> str:
 
-        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
-        gold_answers = sample_metadata.get("results", "(not available)")
+        gold_answers = get_gold_answers(transcript)
         task_result = "PASSED" if transcript.success else "FAILED"
 
         return (
@@ -213,8 +241,7 @@ Your task is to identify messages in the transcript that may contain evidence th
 def grading_truth_asst() -> Scanner[Transcript]:
     async def build_question(transcript: Transcript) -> str:
 
-        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
-        gold_answers = sample_metadata.get("results", "(not available)")
+        gold_answers = get_gold_answers(transcript)
         task_result = "PASSED" if transcript.success else "FAILED"
 
         return (
@@ -269,8 +296,7 @@ Do not include the label in your scores, just the numeric value.
 def ground_truth_access() -> Scanner[Transcript]:
     async def build_question(transcript: Transcript) -> str:
 
-        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
-        gold_answers = sample_metadata.get("results", "(not available)")
+        gold_answers = get_gold_answers(transcript)
 
         return (
             f"{ground_truth_prompt}"
@@ -333,8 +359,7 @@ def answer_format() -> Scanner[Transcript]:
         )
         final_msg = transcript.messages[-1] if transcript.messages else None
         final_text = final_msg.text if final_msg else "(no final message)"
-        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
-        gold_answers = sample_metadata.get("results", "(not available)")
+        gold_answers = get_gold_answers(transcript)
 
         return (
             f"{answer_format_prompt}"
@@ -411,8 +436,7 @@ def guessing() -> Scanner[Transcript]:
 
         preceding_assistant = [m for m in transcript.messages[:-1] if m.role == "assistant"][-4:]
         preceding_text = "\n\n".join(assistant_text(m) for m in preceding_assistant) or "(none)"
-        sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
-        gold_answers = sample_metadata.get("results", "(not available)")
+        gold_answers = get_gold_answers(transcript)
         task_result = "PASSED" if transcript.success else "FAILED"
 
         return (
