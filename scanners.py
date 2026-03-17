@@ -31,7 +31,7 @@ from inspect_scout import (
 
 def get_gold_answers(transcript: Transcript) -> str:
     """Extract gold standard answers from transcript metadata.
-
+    TODO: It's likely that a different logic will need to be added to get this working for each benchmark, unless they follow the same conventions implemented below. This is usually pretty quick.
     Both benchmarks nest sample data under metadata["sample_metadata"] in the
     scout transcript context, but use different keys within it:
     - CORE-bench: sample_metadata["results"]
