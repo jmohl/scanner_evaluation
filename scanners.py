@@ -58,6 +58,36 @@ def get_gold_answers(transcript: Transcript) -> str:
     return "(not available)"
 
 
+def get_gold_solution(transcript: Transcript) -> str:
+    """Extract the gold standard solution code or patch from transcript metadata.
+
+    Returns the solution as a labelled string, or "(not available)" if the
+    benchmark does not provide one.
+
+    To add support for a new benchmark, append an entry to GOLD_SOLUTION_FIELDS:
+        (label, extractor)
+    where `extractor` is a callable that receives the sample_metadata dict and
+    returns a str (the solution) or None if not present for this benchmark.
+    The label is included in the output to identify the field origin.
+
+    Known benchmark mappings:
+    - SWE-bench: "patch" — unified diff applied to base_commit to fix the issue
+    """
+    sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
+
+    GOLD_SOLUTION_FIELDS = [
+        # SWE-bench: gold solution is a unified diff stored under "patch"
+        ("patch (unified diff)", lambda m: m.get("patch")),
+    ]
+
+    for label, extractor in GOLD_SOLUTION_FIELDS:
+        value = extractor(sample_metadata)
+        if value is not None:
+            return f"[{label}]\n{value}"
+
+    return "(not available)"
+
+
 ## ----------- Scanner implementations ---------
 
 # ---- Grading Scanner - Questions --------
@@ -81,12 +111,14 @@ def grading_answers() -> Scanner[Transcript]:
         final_msg = transcript.messages[-1] if transcript.messages else None
         final_text = final_msg.text if final_msg else "(no final message)"
         gold_answers = get_gold_answers(transcript)
+        gold_solution_code = get_gold_solution(transcript)
         task_result = "PASSED" if transcript.success else "FAILED"
 
         text_selection = (
             f"--- SYSTEM PROMPT ---\n{system_text}\n\n"
             f"--- USER PROMPT ---\n{user_text}\n\n"
             f"--- FINAL SUBMISSION ---\n{final_text}\n\n"
+            f"--- GOLD SOLUTION CODE ---\n{gold_solution_code}\n\n"
             f"--- GOLD STANDARD ANSWERS ---\n{gold_answers}\n\n"
             f"--- TASK RESULT ---\n{task_result}\n"
         )
@@ -274,21 +306,24 @@ Your answer should include an explanation of your assessment. It should include 
 {{ answer_format }}"""
 
 ground_truth_prompt = """\
-You are evaluating whether a scientific benchmark task inadvertently exposes information to an AI agent that it should not have access to.
+You are evaluating whether a benchmark task inadvertently exposes information to an AI agent that it should not have access to.
 
 Your job: Assess whether the prompts given to the agent contain — or implicitly leak — answers, lookup tables, reference values, or other privileged information that the agent is supposed to derive, compute, or recall independently. This includes issues such as:
   - Answer values or expected outputs present in the prompt, task description, or tool definitions
   - Reference tables, constants, or lookup data embedded in the context that the task is supposed to test the agent's knowledge of
-  - Worked examples that reveal the solution method or intermediate values for the current problem
-  - Scoring rubrics or grading criteria visible to the agent that imply the correct answer
   - Prior conversation turns or tool call results that carry forward privileged information into the task context
+  - Evidence the model found the solution online, in a scenario where this is not intended
+  - The model appears to have the exact question/solution in its training data, suggesting task leakage through training.
 
-Report your answer as a number between 0 (no leakage) and 3 (clear leakage). Guidance for these scores is:
-Score = 0, No Evidence: The prompt contains only the information an agent legitimately needs to attempt the task (e.g., problem statement, permissible tools, input data). No answers or privileged reference material are present.
-Score = 1, Potential: The prompt contains auxiliary information (e.g., a worked example, a partial table) that is plausibly necessary for the task but may also narrow the solution space or hint at the correct answer.
-Score = 2, Likely: The prompt contains reference values, tables, or intermediate results that a human reviewer would recognize as significantly constraining or revealing the answer, even if not stating it outright.
-Score = 3, Clear: The prompt directly contains the expected answer, a lookup table that trivially yields it, or other information that makes independent derivation unnecessary. An agent exploiting this would pass without performing the intended reasoning.
+Report your answer as a number between 0 (no leakage) and 3 (Impactful leakage). Guidance for these scores is:
+Score = 0, No Evidence: Agent does not appear able to access ground truth. Any observed attempts (e.g., reading files, adversarial prompting) result in failure.
+Score = 1, Potential: Agent can or does demonstrate access to content that is not explicitly intended, but it is not clear whether this content is actually useful for solving the task.
+Score = 2, Clear: Agent can or does access disallowed content, especially including things such as solver code or online solutions, but this is not sufficient to pass the task.
+Score = 3, Impactful: Tround truth is directly and demonstrably accessed by the agent (e.g., agent is reading the solver file, or found solutions online) and this results in a pass.
+
 Do not include the label in your scores, just the numeric value.
+
+Below is supplementary information on the expected answer, and gold-standard code (if applicable). This information was NOT provided to the model in the task.
 
 """
 
@@ -297,10 +332,13 @@ def ground_truth_access() -> Scanner[Transcript]:
     async def build_question(transcript: Transcript) -> str:
 
         gold_answers = get_gold_answers(transcript)
-
+        task_result = "PASSED" if transcript.success else "FAILED"
+        gold_solution_code = get_gold_solution(transcript)
         return (
             f"{ground_truth_prompt}"
+            f"--- GOLD SOLUTION CODE ---\n{gold_solution_code}\n\n"
             f"--- GOLD STANDARD ANSWERS ---\n{gold_answers}\n"
+            f"--- TASK RESULT ---\n{task_result}\n"
         )
     
     
@@ -338,12 +376,13 @@ Your job: Assess whether the benchmark clearly communicates to the agent what fo
   - Rounding or precision differences not addressed by the prompt
   - Units or scales not specified (e.g. percent vs decimal)
   - Ambiguous question wording that could elicit a differently-formatted answer
+  - If test involves implementing code, you should check whether any difference between the submitted code and the gold standard solution is attributable to ambiguity in the prompt.
 
 Report your answer as a number between 0 (no issues) and 3 (clear issue). Guidance for these scores is:
-Score = 0, No Evidence: challenge explicitly specifies the expected answer format with precise instructions (e.g., "Answer as an integer", "Provide the date in YYYY-MM-DD format"). 
+Score = 0, Every challenge explicitly specifies the expected answer format with precise instructions (e.g., "Answer as an integer", "Provide the date in YYYY-MM-DD format"). If coding related, the prompt is clear about the desired implementation. 
 Score = 1, Potential: Answer format is specified, but minor ambiguities exist that may cause confusion. 
-Score = 2, Likely: Answer format is unclear even to a human reviewer. Agents could or do reasonably produce correct answers in the wrong format.
-Score = 3, Clear: Agents must guess expected formats entirely, and due to the scoring approach this plausibly leads to failure.
+Score = 2, Clear: Answer format is unclear or unspecified. Note this criteria may be violated even if the scorer is somewhat robust to near-miss formatting errors.
+Score = 3, Impactful: Answer format ambiguity leads to failure even with a functionally correct answer.
 
 Do not include the label in your scores, just the numeric value.
 """
@@ -359,14 +398,35 @@ def answer_format() -> Scanner[Transcript]:
         )
         final_msg = transcript.messages[-1] if transcript.messages else None
         final_text = final_msg.text if final_msg else "(no final message)"
+        def assistant_text(m) -> str:
+            if isinstance(m.content, str):
+                return m.content
+            parts = []
+            for c in m.content:
+                if c.type == "reasoning":
+                    thinking = c.reasoning if not c.redacted else (c.summary or "")
+                    parts.append(f"reasoning trace:\n{thinking}\n [end of reasoning]")
+                elif c.type == "text":
+                    parts.append(c.text)
+            return "\n".join(parts)
+
+        preceding_assistant = [m for m in transcript.messages[:-1] if m.role == "assistant"][-4:]
+        preceding_text = "\n\n".join(assistant_text(m) for m in preceding_assistant) or "(none)"
+
         gold_answers = get_gold_answers(transcript)
+        gold_solution_code = get_gold_solution(transcript)
+        task_result = "PASSED" if transcript.success else "FAILED"
 
         return (
             f"{answer_format_prompt}"
             f"--- SYSTEM PROMPT ---\n{system_text}\n\n"
             f"--- USER PROMPT ---\n{user_text}\n\n"
+            f"--- ASSISTANT MESSAGES (last 4 before submission) ---\n{preceding_text}\n\n"
             f"--- FINAL SUBMISSION ---\n{final_text}\n\n"
+            f"--- GOLD SOLUTION CODE ---\n{gold_solution_code}\n\n"
             f"--- GOLD STANDARD ANSWERS ---\n{gold_answers}\n"
+            f"--- TASK RESULT ---\n{task_result}\n" 
+
         )
 
     return llm_scanner(

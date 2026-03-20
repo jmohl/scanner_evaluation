@@ -31,6 +31,7 @@ scans
 eval_grading/**/scan-results
 #archived code
 scanner_pilot/
+eval_grading/**/**/validation-archive
 
 #exception for validation csvs
 !evals/**/*.csv
