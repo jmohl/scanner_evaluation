@@ -5,19 +5,17 @@
 # The below example is set up to read transcripts from the HF dataset, but save new scans into the current directory. This is the best practice to delineate experimental/working scans from final data.
 
 # Note: you can specify an individual run in the transcripts here if there are multiple evals and you don't want to scan all of them. However this does mean that scout view may not display transcripts properly. Generally I would use this setting to run scans and then revert to the top level directory when reviewing.
-transcripts: ./eval-logs
-scans: ./scan-results
+transcripts: ./eval-logs/synth/oh1-obv
+scans: ./scan-results/synth/oh1-obv
 
 scanners:
-  # - name: answer_format
-  #   file: ../../scanners.py #note, explicit file paths may be cleaner
+  - name: answer_format
+    file: ../../scanners.py #note, explicit file paths may be cleaner
   # - name: command_not_found
   #   file: ../../scanners.py
   # - name: guessing
   #   file: ../../scanners.py
-  - name: ground_truth_access
-    file: ../../scanners.py
-  # - name: grading_answers
+  # - name: ground_truth_access
   #   file: ../../scanners.py
   ## Grading support scanners
   # - name: grading_answers
