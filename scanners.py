@@ -26,8 +26,33 @@ from inspect_scout import (
     scanner, 
     tool_callers
 )
+import json
 
 ## ----------- Helpers ---------
+
+def get_sample_metadata(transcript: Transcript) -> dict:
+    """Return sample metadata as a dict. It might originally be a string '{}'."""
+    metadata = transcript.metadata or {}
+    if not isinstance(metadata, dict):
+        return {}
+
+    sample_metadata = metadata.get("sample_metadata", {})
+    if isinstance(sample_metadata, dict):
+        return sample_metadata
+
+    if isinstance(sample_metadata, str):
+        sample_metadata = sample_metadata.strip()
+        if not sample_metadata:
+            return {}
+        try:
+            parsed = json.loads(sample_metadata)
+        except json.JSONDecodeError:
+            return {}
+        if isinstance(parsed, dict):
+            return parsed
+
+    return {}
+
 
 def get_gold_answers(transcript: Transcript) -> str:
     """Extract gold standard answers from transcript metadata.
@@ -37,7 +62,7 @@ def get_gold_answers(transcript: Transcript) -> str:
     - CORE-bench: sample_metadata["results"]
     - SWE-bench:  sample_metadata["FAIL_TO_PASS"] / sample_metadata["PASS_TO_PASS"]
     """
-    sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
+    sample_metadata = get_sample_metadata(transcript)
 
     # CORE-bench style
     results = sample_metadata.get("results")
@@ -73,7 +98,7 @@ def get_gold_solution(transcript: Transcript) -> str:
     Known benchmark mappings:
     - SWE-bench: "patch" — unified diff applied to base_commit to fix the issue
     """
-    sample_metadata = (transcript.metadata or {}).get("sample_metadata", {})
+    sample_metadata = get_sample_metadata(transcript)
 
     GOLD_SOLUTION_FIELDS = [
         # SWE-bench: gold solution is a unified diff stored under "patch"
