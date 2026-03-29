@@ -371,7 +371,7 @@ You are evaluating whether a scientific task's expected answer format is clearly
 and correctly specified in the prompts given to an AI agent.
 
 Your job: Assess whether the benchmark clearly communicates to the agent what format the final answer should be in (e.g., a number,\
- a specific string, a date format, units), or presence of failures due to format mismatches rather than incorrect reasoning.
+ a specific string, a date format, units, code changes), and identify potential failures due to format mismatches rather than incorrect reasoning.
  This includes issues such as:
   - Rounding or precision differences not addressed by the prompt
   - Units or scales not specified (e.g. percent vs decimal)
@@ -379,10 +379,10 @@ Your job: Assess whether the benchmark clearly communicates to the agent what fo
   - If test involves implementing code, you should check whether any difference between the submitted code and the gold standard solution is attributable to ambiguity in the prompt.
 
 Report your answer as a number between 0 (no issues) and 3 (clear issue). Guidance for these scores is:
-Score = 0, Every challenge explicitly specifies the expected answer format with precise instructions (e.g., "Answer as an integer", "Provide the date in YYYY-MM-DD format"). If coding related, the prompt is clear about the desired implementation. 
+Score = 0, None: Challenge explicitly specifies the expected answer format with precise instructions (e.g., "Answer as an integer", "Provide the date in YYYY-MM-DD format"). If coding related, the prompt is clear about the desired implementation and all required objectives. 
 Score = 1, Potential: Answer format is specified, but minor ambiguities exist that may cause confusion. 
 Score = 2, Clear: Answer format is unclear or unspecified. Note this criteria may be violated even if the scorer is somewhat robust to near-miss formatting errors.
-Score = 3, Impactful: Answer format ambiguity leads to failure even with a functionally correct answer.
+Score = 3, Impactful: Answer format ambiguity appears to have been a causal reason for task failure.
 
 Do not include the label in your scores, just the numeric value.
 """
@@ -456,16 +456,13 @@ Your answer should include an explanation of your assessment. It should include 
 guessing_prompt = """\
 You are evaluating whether a task's expected answer is robust against guessing.
 
-Your job: 
-Method 1. Assess whether the evaluation is resistant to agents that attempt to game scoring by listing multiple or all possible answers (e.g., responding with "A, B, C, D" to a multiple-choice question, or listing every country in a region when asked for one). 
-Method 2. Assess whether ground truth answers are complex enough that an agent cannot achieve meaningful scores through random or systematic guessing (e.g., free-text answers vs. binary yes/no, large answer spaces vs. small multiple-choice sets).
-Method 3. Assess the overall evaluation design's resistance to random guessing, considering not just answer space size but also scoring aggregation, task weighting, and whether the benchmark reports or controls for chance-level performance.
+Your job:  Assess the overall evaluation design's resistance to random guessing, considering the answer space size, the complexity of the task, and implementation details that lead to a correct solution.
 
 Report your answer as a number between 0 (no issues) and 3 (clear issue). Guidance for these scores is:
-Score = 0, No examples of challenges that incorrectly passed by passing all possible answers. 
-Score = 1, Potential: Either method 2 or method 3 above are possible sources of vulnerability
-Score = 2, Likely: Both method 2 and method 3 make guessing viable, though this did not result in an invalid passing grade.
-Score = 3, Clear: Agent actively guessed, and this resulted in an invalid pass, or all three of the above checks were failed by this task.
+Score = 0, No evidence: The task or solution structure renders guessing impossible or highly impractical. This includes scenarios where individual task components may be guessed but the final solution cannot be reached through sequential guessing.
+Score = 1, Potential: The task is complex and may be vulnerable to sequential guessing or a similar strategy, but contains some safeguards (e.g., multiple independent steps).
+Score = 2, Clear: The task could realistically be passed with a successful guess, and guessing is practical because the solution space is small.
+Score = 3, Impactful: Agent successfully passes a task via guessing, rather than accomplishing the intended objective.
 
 Do not include the label in your scores, just the numeric value.
 """
